@@ -6,6 +6,5 @@ public class AudioDuplex {
 
         receiver.start();
         sender.start();
-
     }
 }

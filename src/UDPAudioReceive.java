@@ -73,32 +73,25 @@ public class UDPAudioReceive implements Runnable {
                 receiving_socket.receive(packet);
                 int i;
 
-
-
+                //extract authentication key from the packet
                 byte[] authKeyArr = new byte[2];
                 System.arraycopy(buffer, 0, authKeyArr, 0, 2);
                 ByteBuffer authKeyByteBuffer = ByteBuffer.wrap(authKeyArr);
-
-
                 short authKey = authKeyByteBuffer.getShort();
 
-
+                //Check if the authentication key is correct
                 if(authKey != 10){
                     System.out.println("Incorrect authentication key!");
                 } else {
 
-                    //Isolate the
+                    //extract the audio from the packet
                     byte[] playBuffer = new byte[512];
                     System.arraycopy(buffer, 2, playBuffer, 0, 512);
 
+                    //Decrypt the audio and play it
                     playBuffer = decryptBlock(playBuffer, 442);
                     player.playBlock(playBuffer);
-
                 }
-
-
-
-
 
             } catch (IOException e){
                 System.out.println("ERROR: TextReceiver: Some random IO error occured!");

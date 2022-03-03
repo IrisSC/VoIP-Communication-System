@@ -31,7 +31,6 @@ public class UDPAudio implements Runnable {
         return unwrapEncrypt.array();
     }
 
-
     public void run(){
         //***************************************************
         //Port to send to
@@ -80,32 +79,24 @@ public class UDPAudio implements Runnable {
         }
         while (running){
             try{
+                short authenticationKey = 10;
+                int encryptionKey = 442;
 
                 //Get audio block from microphone
                 byte[] buffer = recorder.getBlock();
 
-
-                byte[] encryptedBlock = encryptBlock(buffer, 442);
+                //Set encryption key
+                byte[] encryptedBlock = encryptBlock(buffer, encryptionKey);
 
                 ByteBuffer VoIPpacket = ByteBuffer.allocate(514);
-                short authenticationKey = 10;
                 VoIPpacket.putShort(authenticationKey);
                 VoIPpacket.put(encryptedBlock);
-
-
-                                
 
                 //Make a DatagramPacket from it, with client address and port number
                 DatagramPacket packet = new DatagramPacket(VoIPpacket.array(), VoIPpacket.array().length, clientIP, PORT);
 
-
-
-
-
                 //Send it
                 sending_socket.send(packet);
-
-
 
             } catch (IOException e){
                 System.out.println("ERROR: TextSender: Some random IO error occured!");
