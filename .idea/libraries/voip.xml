@@ -1,0 +1,9 @@
+<component name="libraryTable">
+  <library name="voip">
+    <CLASSES>
+      <root url="jar://$PROJECT_DIR$/../voip.jar!/" />
+    </CLASSES>
+    <JAVADOC />
+    <SOURCES />
+  </library>
+</component>

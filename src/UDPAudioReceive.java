@@ -5,15 +5,19 @@ import java.net.SocketException;
 import java.nio.ByteBuffer;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.HashMap;
 
 import CMPC3M06.AudioPlayer;
 import CMPC3M06.AudioRecorder;
+import uk.ac.uea.cmp.voip.DatagramSocket2;
+import uk.ac.uea.cmp.voip.DatagramSocket3;
+import uk.ac.uea.cmp.voip.DatagramSocket4;
 
 import javax.sound.sampled.LineUnavailableException;
 
 
 public class UDPAudioReceive implements Runnable {
-    static DatagramSocket receiving_socket;
+    static DatagramSocket3 receiving_socket;
 
     public void start(){
         Thread thread = new Thread(this);
@@ -37,6 +41,9 @@ public class UDPAudioReceive implements Runnable {
         //***************************************************
         //Port to open socket on
         int PORT = 55555;
+        //used for reordering the packets
+        short order = 0;
+        HashMap<Short, byte[]> saved = new HashMap<Short, byte[]>();
         //***************************************************
 
         //***************************************************
@@ -44,7 +51,7 @@ public class UDPAudioReceive implements Runnable {
 
         //DatagramSocket receiving_socket;
         try{
-            receiving_socket = new DatagramSocket(PORT);
+            receiving_socket = new DatagramSocket3(PORT);
         } catch (SocketException e){
             System.out.println("ERROR: TextReceiver: Could not open UDP socket to receive from.");
             e.printStackTrace();
@@ -66,16 +73,21 @@ public class UDPAudioReceive implements Runnable {
         while (running){
 
             try{
-
-                byte[] buffer = new byte[514];
+                byte[] buffer = new byte[516];
                 DatagramPacket packet = new DatagramPacket(buffer, 0, 514);
 
                 receiving_socket.receive(packet);
                 int i;
+                //extract test number
+                byte[] testNum = new byte[2];
+                System.arraycopy(buffer, 0, testNum, 0, 2);
+                ByteBuffer testNumByteBuffer = ByteBuffer.wrap(testNum);
+                short test = testNumByteBuffer.getShort();
+                //System.out.println(test)
 
                 //extract authentication key from the packet
                 byte[] authKeyArr = new byte[2];
-                System.arraycopy(buffer, 0, authKeyArr, 0, 2);
+                System.arraycopy(buffer, 2, authKeyArr, 0, 2);
                 ByteBuffer authKeyByteBuffer = ByteBuffer.wrap(authKeyArr);
                 short authKey = authKeyByteBuffer.getShort();
 
@@ -86,12 +98,39 @@ public class UDPAudioReceive implements Runnable {
 
                     //extract the audio from the packet
                     byte[] playBuffer = new byte[512];
-                    System.arraycopy(buffer, 2, playBuffer, 0, 512);
+                    System.arraycopy(buffer, 4, playBuffer, 0, 512);
 
                     //Decrypt the audio and play it
                     playBuffer = decryptBlock(playBuffer, 442);
-                    player.playBlock(playBuffer);
+                    //put packets in order
+                    if(test == order){
+                        System.out.println(order);
+                        player.playBlock(playBuffer);
+                        if(order == 19){
+                            order = 0;
+                        }else {
+                            order = (short) (order + 1);
+                        }
+                        byte [] nextPacket = saved.get(order);
+                        while(nextPacket != null){
+                            System.out.println(order);
+                            player.playBlock(nextPacket);
+                            saved.remove(order);
+                            if(order == 19){
+                                order = 0;
+                            }else {
+                                order = (short) (order + 1);
+                            }
+                            nextPacket = saved.get(order);
+                        }
+                    }
+                    else{
+                        saved.put(test, playBuffer);
+                    }
+
+
                 }
+
 
             } catch (IOException e){
                 System.out.println("ERROR: TextReceiver: Some random IO error occured!");

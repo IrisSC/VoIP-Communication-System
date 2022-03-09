@@ -7,11 +7,13 @@ import java.nio.ByteBuffer;
 import CMPC3M06.AudioPlayer;
 import CMPC3M06.AudioRecorder;
 
+import uk.ac.uea.cmp.voip.DatagramSocket3;
+
 import javax.sound.sampled.LineUnavailableException;
 
 public class UDPAudio implements Runnable {
 
-    static DatagramSocket sending_socket;
+    static DatagramSocket3 sending_socket;
 
     public void start(){
         Thread thread = new Thread(this);
@@ -35,6 +37,7 @@ public class UDPAudio implements Runnable {
         //***************************************************
         //Port to send to
         int PORT = 55555;
+        short test = 0;
         //IP ADDRESS to send to
         InetAddress clientIP = null;
         try {
@@ -53,7 +56,7 @@ public class UDPAudio implements Runnable {
 
         //DatagramSocket sending_socket;
         try{
-            sending_socket = new DatagramSocket();
+            sending_socket = new DatagramSocket3();
         } catch (SocketException e){
             System.out.println("ERROR: TextSender: Could not open UDP socket to send from.");
             e.printStackTrace();
@@ -88,7 +91,13 @@ public class UDPAudio implements Runnable {
                 //Set encryption key
                 byte[] encryptedBlock = encryptBlock(buffer, encryptionKey);
 
-                ByteBuffer VoIPpacket = ByteBuffer.allocate(514);
+                ByteBuffer VoIPpacket = ByteBuffer.allocate(516);
+                VoIPpacket.putShort(test);
+                if(test == 19){
+                    test = 0;
+                }else {
+                    test = (short) (test + (short) 1);
+                }
                 VoIPpacket.putShort(authenticationKey);
                 VoIPpacket.put(encryptedBlock);
 
