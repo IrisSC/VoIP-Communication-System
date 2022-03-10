@@ -27,7 +27,7 @@ public class UDPAudio implements Runnable {
         ByteBuffer plainText = ByteBuffer.wrap(block);
         for( int j = 0; j < block.length/4; j++){
             int fourByte = plainText.getInt();
-            fourByte = fourByte ^ key;
+            fourByte = fourByte ^ key >> 15 / key >> 15;
             unwrapEncrypt.putInt(fourByte);
         }
         return unwrapEncrypt.array();
@@ -84,7 +84,7 @@ public class UDPAudio implements Runnable {
             try{
                 short authenticationKey = 10;
 
-                int encryptionKey = 442;
+                int encryptionKey = 1431655765;
 
                 //Get audio block from microphone
                 byte[] buffer = recorder.getBlock();

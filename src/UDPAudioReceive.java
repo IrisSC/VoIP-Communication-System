@@ -26,7 +26,7 @@ public class UDPAudioReceive implements Runnable {
         ByteBuffer cipherText = ByteBuffer.wrap(block);
         for(int j = 0; j < block.length/4; j++) {
             int fourByte = cipherText.getInt();
-            fourByte = fourByte ^ key; // XOR decrypt
+            fourByte = fourByte ^ key >> 15 / key >> 15; // XOR decrypt
             unwrapDecrypt.putInt(fourByte);
         }
         return unwrapDecrypt.array();
@@ -34,7 +34,7 @@ public class UDPAudioReceive implements Runnable {
 
     public void run(){
 
-        short packCount = 1;
+        short packCount = 0;
         short lastPack = 0;
         byte[] lastPlayBuffer = new byte[512];
         //***************************************************
@@ -91,10 +91,10 @@ public class UDPAudioReceive implements Runnable {
                 if(authKey != 10){
                     System.out.println("Incorrect authentication key!");
                 }
-                else if(packCount - 1 != ((int) lastPack)){
+                /*else if(packCount - 1 != ((int) lastPack)){
                     player.playBlock(lastPlayBuffer);
 
-                }
+                }*/
                 else {
                     packCount++;
                     //extract the audio from the packet
@@ -103,9 +103,9 @@ public class UDPAudioReceive implements Runnable {
                     System.arraycopy(buffer, 4, playBuffer, 0, 512);
 
                     //Decrypt the audio and play it
-                    playBuffer = decryptBlock(playBuffer, 442);
+                    playBuffer = decryptBlock(playBuffer, 1431655765);
                     player.playBlock(playBuffer);
-                    lastPlayBuffer = decryptBlock(playBuffer, 442);
+                    lastPlayBuffer = decryptBlock(playBuffer, 1431655765);
                     lastPack = packNum;
                 }
 
