@@ -74,7 +74,7 @@ public class UDPAudioReceive implements Runnable {
 
             try{
                 byte[] buffer = new byte[516];
-                DatagramPacket packet = new DatagramPacket(buffer, 0, 514);
+                DatagramPacket packet = new DatagramPacket(buffer, 0, 516);
 
                 receiving_socket.receive(packet);
                 int i;
