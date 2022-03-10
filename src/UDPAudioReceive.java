@@ -44,6 +44,7 @@ public class UDPAudioReceive implements Runnable {
         //used for reordering the packets
         short order = 0;
         HashMap<Short, byte[]> saved = new HashMap<Short, byte[]>();
+        byte[] prevouisPacket = new byte[512];
         //***************************************************
 
         //***************************************************
@@ -102,9 +103,30 @@ public class UDPAudioReceive implements Runnable {
 
                     //Decrypt the audio and play it
                     playBuffer = decryptBlock(playBuffer, 442);
+                    //add the packet to hashmap
+                    saved.put(test, playBuffer);
                     //put packets in order
-                    if(test == order){
-                        System.out.println(order);
+                    if(saved.size() >= 5){
+                        byte [] nextPacket = saved.get(order);
+                        if(nextPacket != null){
+                            player.playBlock(nextPacket);
+                            saved.remove(order);
+                            prevouisPacket = nextPacket;
+                        }
+                        else{
+                            // play the prevous packet
+                            if(prevouisPacket != null){
+                                player.playBlock(prevouisPacket);
+                            }
+                        }
+                        if(order == 19){
+                            order = 0;
+                        }else {
+                            order = (short) (order + 1);
+                        }
+                    }
+                    /*if(test == order){
+                        System.out.println(test);
                         player.playBlock(playBuffer);
                         if(order == 19){
                             order = 0;
@@ -126,7 +148,7 @@ public class UDPAudioReceive implements Runnable {
                     }
                     else{
                         saved.put(test, playBuffer);
-                    }
+                    }*/
 
 
                 }
