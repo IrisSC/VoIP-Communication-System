@@ -34,6 +34,9 @@ public class UDPAudioReceive implements Runnable {
 
     public void run(){
 
+        short packCount = 1;
+        short lastPack = 0;
+        byte[] lastPlayBuffer = new byte[512];
         //***************************************************
         //Port to open socket on
         int PORT = 55555;
@@ -67,30 +70,43 @@ public class UDPAudioReceive implements Runnable {
 
             try{
 
-                byte[] buffer = new byte[514];
-                DatagramPacket packet = new DatagramPacket(buffer, 0, 514);
+                byte[] buffer = new byte[516];
+                DatagramPacket packet = new DatagramPacket(buffer, 0, 516);
 
                 receiving_socket.receive(packet);
                 int i;
 
                 //extract authentication key from the packet
                 byte[] authKeyArr = new byte[2];
-                System.arraycopy(buffer, 0, authKeyArr, 0, 2);
+                System.arraycopy(buffer, 2, authKeyArr, 0, 2);
                 ByteBuffer authKeyByteBuffer = ByteBuffer.wrap(authKeyArr);
                 short authKey = authKeyByteBuffer.getShort();
+
+                byte[] packNumArr = new byte[2];
+                System.arraycopy(buffer,0,packNumArr,0,2);
+                ByteBuffer packNumBuffer = ByteBuffer.wrap(packNumArr);
+                short packNum = packNumBuffer.getShort();
 
                 //Check if the authentication key is correct
                 if(authKey != 10){
                     System.out.println("Incorrect authentication key!");
-                } else {
+                }
+                else if(packCount - 1 != ((int) lastPack)){
+                    player.playBlock(lastPlayBuffer);
 
+                }
+                else {
+                    packCount++;
                     //extract the audio from the packet
+                    System.out.println("Packet Number: " + packNum + " ,Packet Count: " + packCount + " ,Last Packet: " + lastPack);
                     byte[] playBuffer = new byte[512];
-                    System.arraycopy(buffer, 2, playBuffer, 0, 512);
+                    System.arraycopy(buffer, 4, playBuffer, 0, 512);
 
                     //Decrypt the audio and play it
                     playBuffer = decryptBlock(playBuffer, 442);
                     player.playBlock(playBuffer);
+                    lastPlayBuffer = decryptBlock(playBuffer, 442);
+                    lastPack = packNum;
                 }
 
             } catch (IOException e){
