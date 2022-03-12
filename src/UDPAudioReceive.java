@@ -44,7 +44,7 @@ public class UDPAudioReceive implements Runnable {
         //used for reordering the packets
         short order = 0;
         HashMap<Short, byte[]> saved = new HashMap<Short, byte[]>();
-        byte[] prevouisPacket = new byte[512];
+        byte[] previousPacket = new byte[512];
         //***************************************************
 
         //***************************************************
@@ -105,18 +105,19 @@ public class UDPAudioReceive implements Runnable {
                     playBuffer = decryptBlock(playBuffer, 442);
                     //add the packet to hashmap
                     saved.put(test, playBuffer);
-                    //put packets in order
+                    //put in buffer
                     if(saved.size() >= 5){
+                        //get correct packet
                         byte [] nextPacket = saved.get(order);
                         if(nextPacket != null){
                             player.playBlock(nextPacket);
                             saved.remove(order);
-                            prevouisPacket = nextPacket;
+                            previousPacket = nextPacket;
                         }
                         else{
-                            // play the prevous packet
-                            if(prevouisPacket != null){
-                                player.playBlock(prevouisPacket);
+                            // play the previous packet if correct packet not available
+                            if(previousPacket != null){
+                                player.playBlock(previousPacket);
                             }
                         }
                         if(order == 19){
@@ -125,35 +126,7 @@ public class UDPAudioReceive implements Runnable {
                             order = (short) (order + 1);
                         }
                     }
-                    /*if(test == order){
-                        System.out.println(test);
-                        player.playBlock(playBuffer);
-                        if(order == 19){
-                            order = 0;
-                        }else {
-                            order = (short) (order + 1);
-                        }
-                        byte [] nextPacket = saved.get(order);
-                        while(nextPacket != null){
-                            System.out.println(order);
-                            player.playBlock(nextPacket);
-                            saved.remove(order);
-                            if(order == 19){
-                                order = 0;
-                            }else {
-                                order = (short) (order + 1);
-                            }
-                            nextPacket = saved.get(order);
-                        }
-                    }
-                    else{
-                        saved.put(test, playBuffer);
-                    }*/
-
-
                 }
-
-
             } catch (IOException e){
                 System.out.println("ERROR: TextReceiver: Some random IO error occured!");
                 e.printStackTrace();
