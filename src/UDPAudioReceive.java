@@ -24,10 +24,16 @@ public class UDPAudioReceive implements Runnable {
         thread.start();
     }
 
-    public static byte[] decryptBlock(byte[] block, int key){
-        ByteBuffer unwrapDecrypt = ByteBuffer.allocate(block.length);
+    public static byte[] decryptBlock(byte[] block, int key, int shiftKey){
+        byte [] block1 = Arrays.copyOfRange(block, 0, block.length - shiftKey);
+        byte [] block2 = Arrays.copyOfRange(block, block.length - shiftKey, block.length);
+        byte [] unShiftedBlock = new byte [block.length];
+        System.arraycopy(block2, 0, unShiftedBlock, 0, block2.length);
+        System.arraycopy(block1, 0, unShiftedBlock, block2.length, block1.length);
 
-        ByteBuffer cipherText = ByteBuffer.wrap(block);
+        ByteBuffer unwrapDecrypt = ByteBuffer.allocate(unShiftedBlock.length);
+
+        ByteBuffer cipherText = ByteBuffer.wrap(unShiftedBlock);
         for(int j = 0; j < block.length/4; j++) {
             int fourByte = cipherText.getInt();
             fourByte = fourByte ^ key; // XOR decrypt
@@ -41,6 +47,10 @@ public class UDPAudioReceive implements Runnable {
         //***************************************************
         //Port to open socket on
         int PORT = 55555;
+        //decryption
+        short authenticationKey = 10;
+        int decryptionKey = 255;
+        int shiftKey = 10;
         //used for reordering the packets
         short order = 0;
         HashMap<Short, byte[]> saved = new HashMap<Short, byte[]>();
@@ -93,7 +103,7 @@ public class UDPAudioReceive implements Runnable {
                 short authKey = authKeyByteBuffer.getShort();
 
                 //Check if the authentication key is correct
-                if(authKey != 10){
+                if(authKey != authenticationKey){
                     System.out.println("Incorrect authentication key!");
                 } else {
 
@@ -102,7 +112,7 @@ public class UDPAudioReceive implements Runnable {
                     System.arraycopy(buffer, 4, playBuffer, 0, 512);
 
                     //Decrypt the audio and play it
-                    playBuffer = decryptBlock(playBuffer, 442);
+                    playBuffer = decryptBlock(playBuffer, decryptionKey, shiftKey);
                     //add the packet to hashmap
                     saved.put(test, playBuffer);
                     //put in buffer

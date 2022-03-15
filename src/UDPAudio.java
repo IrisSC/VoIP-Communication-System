@@ -3,6 +3,7 @@ import java.io.IOException;
 import java.io.InputStreamReader;
 import java.net.*;
 import java.nio.ByteBuffer;
+import java.util.Arrays;
 
 import CMPC3M06.AudioPlayer;
 import CMPC3M06.AudioRecorder;
@@ -20,7 +21,7 @@ public class UDPAudio implements Runnable {
         thread.start();
     }
 
-    public static byte[] encryptBlock(byte[] block, int key){
+    public static byte[] encryptBlock(byte[] block, int key, int shiftKey){
         //Encrypted audio block will be stored
         ByteBuffer unwrapEncrypt = ByteBuffer.allocate(block.length);
 
@@ -30,13 +31,23 @@ public class UDPAudio implements Runnable {
             fourByte = fourByte ^ key;
             unwrapEncrypt.putInt(fourByte);
         }
-        return unwrapEncrypt.array();
+
+        byte [] firstSection = Arrays.copyOfRange(unwrapEncrypt.array(), 0 , shiftKey);
+        byte [] secondSection = Arrays.copyOfRange(unwrapEncrypt.array(), shiftKey, unwrapEncrypt.array().length);
+        byte [] shiftArray = new byte [unwrapEncrypt.array().length];
+        System.arraycopy(secondSection, 0, shiftArray, 0, secondSection.length);
+        System.arraycopy(firstSection, 0, shiftArray, secondSection.length, firstSection.length);
+        return shiftArray;
     }
 
     public void run(){
         //***************************************************
         //Port to send to
         int PORT = 55555;
+        //encryption
+        short authenticationKey = 10;
+        int encryptionKey = 255;
+        int shiftKey = 10;
         short test = 0;
         //IP ADDRESS to send to
         InetAddress clientIP = null;
@@ -82,14 +93,11 @@ public class UDPAudio implements Runnable {
         }
         while (running){
             try{
-                short authenticationKey = 10;
-                int encryptionKey = 442;
-
                 //Get audio block from microphone
                 byte[] buffer = recorder.getBlock();
 
                 //Set encryption key
-                byte[] encryptedBlock = encryptBlock(buffer, encryptionKey);
+                byte[] encryptedBlock = encryptBlock(buffer, encryptionKey, shiftKey);
 
                 ByteBuffer VoIPpacket = ByteBuffer.allocate(516);
                 VoIPpacket.putShort(test);
