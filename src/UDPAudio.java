@@ -3,49 +3,41 @@ import java.io.IOException;
 import java.io.InputStreamReader;
 import java.net.*;
 import java.nio.ByteBuffer;
-import java.util.Arrays;
 
 import CMPC3M06.AudioPlayer;
 import CMPC3M06.AudioRecorder;
+import uk.ac.uea.cmp.voip.DatagramSocket2;
+import uk.ac.uea.cmp.voip.DatagramSocket3;
 
 import javax.sound.sampled.LineUnavailableException;
 
 public class UDPAudio implements Runnable {
 
-    static DatagramSocket sending_socket;
+    static DatagramSocket2 sending_socket2;
 
     public void start(){
         Thread thread = new Thread(this);
         thread.start();
     }
 
-    public static byte[] encryptBlock(byte[] block, int key, int shiftKey){
+    public static byte[] encryptBlock(byte[] block, int key){
         //Encrypted audio block will be stored
         ByteBuffer unwrapEncrypt = ByteBuffer.allocate(block.length);
 
         ByteBuffer plainText = ByteBuffer.wrap(block);
         for( int j = 0; j < block.length/4; j++){
             int fourByte = plainText.getInt();
-            fourByte = fourByte ^ key;
+            fourByte = fourByte ^ key >> 15 / key >> 15;
             unwrapEncrypt.putInt(fourByte);
         }
-
-        byte [] firstSection = Arrays.copyOfRange(unwrapEncrypt.array(), 0 , shiftKey);
-        byte [] secondSection = Arrays.copyOfRange(unwrapEncrypt.array(), shiftKey, unwrapEncrypt.array().length);
-        byte [] shiftArray = new byte [unwrapEncrypt.array().length];
-        System.arraycopy(secondSection, 0, shiftArray, 0, secondSection.length);
-        System.arraycopy(firstSection, 0, shiftArray, secondSection.length, firstSection.length);
-        return shiftArray;
+        return unwrapEncrypt.array();
     }
 
     public void run(){
         //***************************************************
         //Port to send to
+        short packetNumber = 0;
         int PORT = 55555;
-        //encryption
-        short authenticationKey = 10;
-        int encryptionKey = 255;
-        int shiftKey = 10;
         //IP ADDRESS to send to
         InetAddress clientIP = null;
         try {
@@ -64,7 +56,7 @@ public class UDPAudio implements Runnable {
 
         //DatagramSocket sending_socket;
         try{
-            sending_socket = new DatagramSocket();
+            sending_socket2 = new DatagramSocket2();
         } catch (SocketException e){
             System.out.println("ERROR: TextSender: Could not open UDP socket to send from.");
             e.printStackTrace();
@@ -90,13 +82,19 @@ public class UDPAudio implements Runnable {
         }
         while (running){
             try{
+
+                short authenticationKey = 10;
+
+                int encryptionKey = 1431655765;
+
                 //Get audio block from microphone
                 byte[] buffer = recorder.getBlock();
 
                 //Set encryption key
-                byte[] encryptedBlock = encryptBlock(buffer, encryptionKey, shiftKey);
+                byte[] encryptedBlock = encryptBlock(buffer, encryptionKey);
 
-                ByteBuffer VoIPpacket = ByteBuffer.allocate(514);
+                ByteBuffer VoIPpacket = ByteBuffer.allocate(516);
+                VoIPpacket.putShort(packetNumber);
                 VoIPpacket.putShort(authenticationKey);
                 VoIPpacket.put(encryptedBlock);
 
@@ -104,7 +102,8 @@ public class UDPAudio implements Runnable {
                 DatagramPacket packet = new DatagramPacket(VoIPpacket.array(), VoIPpacket.array().length, clientIP, PORT);
 
                 //Send it
-                sending_socket.send(packet);
+                sending_socket2.send(packet);
+                packetNumber++;
 
             } catch (IOException e){
                 System.out.println("ERROR: TextSender: Some random IO error occured!");
@@ -113,7 +112,7 @@ public class UDPAudio implements Runnable {
         }
         //Close the socket
         recorder.close();
-        sending_socket.close();
+        sending_socket2.close();
         //***************************************************
     }
 }
