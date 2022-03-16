@@ -115,7 +115,7 @@ public class UDPAudio implements Runnable {
                     VoIPpacket.put(encryptedBlock1);
                     VoIPpacket.put(encryptedBlock2);
                     packetNum = (short) (packetNum + 1);
-                    if(packetNum == 32){
+                    if(packetNum == 50){
                         packetNum = 0;
                     }
 
@@ -136,7 +136,7 @@ public class UDPAudio implements Runnable {
                         rows = 0;
                         columns = columns + 1;
                     }
-                    if (columns ==4) {
+                    if (columns == 4) {
                         columns = 0;
                     }
                 }

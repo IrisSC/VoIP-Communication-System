@@ -110,9 +110,6 @@ public class UDPAudioReceive implements Runnable {
                     byte[] playBuffer = new byte[1024];
                     System.arraycopy(buffer, 4, playBuffer, 0, 1024);
 
-                    //Decrypt the audio and play it
-                    //playBuffer = decryptBlock(playBuffer, decryptionKey, shiftKey);
-                    //player.playBlock(playBuffer);
                     saved.put(packetNum, playBuffer);
                     if(saved.size() >= 16){
                         //get correct packet
@@ -122,6 +119,7 @@ public class UDPAudioReceive implements Runnable {
                             System.arraycopy(nextPacket, 0, currentPacket, 0, 512);
                             System.arraycopy(nextPacket,512, previousPacket, 0, 512);
                             currentPacket = decryptBlock(currentPacket, decryptionKey, shiftKey);
+                            previousPacket = decryptBlock(previousPacket, decryptionKey, shiftKey);
                             player.playBlock(currentPacket);
                             saved.remove(order);
                             System.out.println(order);
@@ -129,7 +127,6 @@ public class UDPAudioReceive implements Runnable {
                         else{
                             // play the previous packet if correct packet not available
                             if(previousPacket != null){
-                                previousPacket = decryptBlock(previousPacket, decryptionKey, shiftKey);
                                 player.playBlock(previousPacket);
                                 System.out.println(order-1);
                             }
