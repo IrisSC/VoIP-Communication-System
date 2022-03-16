@@ -131,7 +131,7 @@ public class UDPAudioReceive implements Runnable {
                                 System.out.println(order-1);
                             }
                         }
-                        if(order == 31){
+                        if(order == 49){
                             order = 0;
                         }else {
                             order = (short) (order + 1);
