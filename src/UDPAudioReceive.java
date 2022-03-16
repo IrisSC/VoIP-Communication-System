@@ -83,8 +83,8 @@ public class UDPAudioReceive implements Runnable {
         while (running){
 
             try{
-                byte[] buffer = new byte[516];
-                DatagramPacket packet = new DatagramPacket(buffer, 0, 516);
+                byte[] buffer = new byte[1028];
+                DatagramPacket packet = new DatagramPacket(buffer, 0, 1028);
 
                 receiving_socket.receive(packet);
                 int i;
@@ -107,25 +107,29 @@ public class UDPAudioReceive implements Runnable {
                 } else {
 
                     //extract the audio from the packet
-                    byte[] playBuffer = new byte[512];
-                    System.arraycopy(buffer, 4, playBuffer, 0, 512);
+                    byte[] playBuffer = new byte[1024];
+                    System.arraycopy(buffer, 4, playBuffer, 0, 1024);
 
                     //Decrypt the audio and play it
-                    playBuffer = decryptBlock(playBuffer, decryptionKey, shiftKey);
+                    //playBuffer = decryptBlock(playBuffer, decryptionKey, shiftKey);
                     //player.playBlock(playBuffer);
                     saved.put(packetNum, playBuffer);
                     if(saved.size() >= 16){
                         //get correct packet
                         byte [] nextPacket = saved.get(order);
                         if(nextPacket != null){
-                            player.playBlock(nextPacket);
+                            byte [] currentPacket = new byte[512];
+                            System.arraycopy(nextPacket, 0, currentPacket, 0, 512);
+                            System.arraycopy(nextPacket,512, previousPacket, 0, 512);
+                            currentPacket = decryptBlock(currentPacket, decryptionKey, shiftKey);
+                            player.playBlock(currentPacket);
                             saved.remove(order);
-                            previousPacket = nextPacket;
                             System.out.println(order);
                         }
                         else{
                             // play the previous packet if correct packet not available
                             if(previousPacket != null){
+                                previousPacket = decryptBlock(previousPacket, decryptionKey, shiftKey);
                                 player.playBlock(previousPacket);
                                 System.out.println(order-1);
                             }

@@ -53,6 +53,8 @@ public class UDPAudio implements Runnable {
         ByteBuffer [][] interleave = new ByteBuffer[4][4];
         int rows = 0;
         int columns = 0;
+        //adding packet to previous one
+        byte [] previousPack = new byte[512];
         //IP ADDRESS to send to
         InetAddress clientIP = null;
         try {
@@ -100,41 +102,46 @@ public class UDPAudio implements Runnable {
                 //Get audio block from microphone
                 byte[] buffer = recorder.getBlock();
 
-                //Set encryption key
-                byte[] encryptedBlock = encryptBlock(buffer, encryptionKey, shiftKey);
+                //check to make sure this isn't the first packet
+                if(previousPack != null){
+                    //Encrypt buffer
+                    byte[] encryptedBlock2 = encryptBlock(buffer, encryptionKey, shiftKey);
+                    //Encrypt previous buffer
+                    byte[] encryptedBlock1 = encryptBlock(previousPack, encryptionKey, shiftKey);
 
-                ByteBuffer VoIPpacket = ByteBuffer.allocate(516);
-                VoIPpacket.putShort(packetNum);
-                VoIPpacket.putShort(authenticationKey);
-                VoIPpacket.put(encryptedBlock);
-                packetNum = (short) (packetNum + 1);
-                if(packetNum == 32){
-                    packetNum = 0;
-                }
+                    ByteBuffer VoIPpacket = ByteBuffer.allocate(1028);
+                    VoIPpacket.putShort(packetNum);
+                    VoIPpacket.putShort(authenticationKey);
+                    VoIPpacket.put(encryptedBlock1);
+                    VoIPpacket.put(encryptedBlock2);
+                    packetNum = (short) (packetNum + 1);
+                    if(packetNum == 32){
+                        packetNum = 0;
+                    }
 
-                interleave[rows][columns] = VoIPpacket;
-                if(columns == 3 && rows == 3){
-                    for(int i=0; i<4; i++){
-                        for(int j=0; j<4; j++){
-                            ByteBuffer sendPacket = interleave[i][j];
-                            //Make a DatagramPacket from it, with client address and port number
-                            DatagramPacket packet = new DatagramPacket(sendPacket.array(), sendPacket.array().length, clientIP, PORT);
-                            //Send it
-                            sending_socket.send(packet);
+                    interleave[rows][columns] = VoIPpacket;
+                    if(columns == 3 && rows == 3){
+                        for(int i=0; i<4; i++){
+                            for(int j=0; j<4; j++){
+                                ByteBuffer sendPacket = interleave[i][j];
+                                //Make a DatagramPacket from it, with client address and port number
+                                DatagramPacket packet = new DatagramPacket(sendPacket.array(), sendPacket.array().length, clientIP, PORT);
+                                //Send it
+                                sending_socket.send(packet);
+                            }
                         }
                     }
+                    rows = rows + 1;
+                    if(rows == 4){
+                        rows = 0;
+                        columns = columns + 1;
+                    }
+                    if (columns ==4) {
+                        columns = 0;
+                    }
                 }
-                 rows = rows + 1;
-                 if(rows == 4){
-                     rows = 0;
-                     columns = columns + 1;
-                 }
-                 if (columns ==4){
-                     columns = 0;
-                 }
-
-
-
+                //copy buffer to be previous packet
+                System.arraycopy(buffer, 0,previousPack, 0, 512);
             } catch (IOException e){
                 System.out.println("ERROR: TextSender: Some random IO error occured!");
                 e.printStackTrace();
