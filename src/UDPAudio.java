@@ -9,9 +9,11 @@ import CMPC3M06.AudioRecorder;
 
 import javax.sound.sampled.LineUnavailableException;
 
+import uk.ac.uea.cmp.voip.DatagramSocket4;
+
 public class UDPAudio implements Runnable {
 
-    static DatagramSocket sending_socket;
+    static DatagramSocket4 sending_socket;
 
     public void start(){
         Thread thread = new Thread(this);
@@ -53,7 +55,7 @@ public class UDPAudio implements Runnable {
 
         //DatagramSocket sending_socket;
         try{
-            sending_socket = new DatagramSocket();
+            sending_socket = new DatagramSocket4();
         } catch (SocketException e){
             System.out.println("ERROR: TextSender: Could not open UDP socket to send from.");
             e.printStackTrace();
@@ -69,6 +71,7 @@ public class UDPAudio implements Runnable {
 
         //***************************************************
         //Main loop.
+
 
         boolean running = true;
         AudioRecorder recorder = null;
@@ -88,9 +91,17 @@ public class UDPAudio implements Runnable {
                 //Set encryption key
                 byte[] encryptedBlock = encryptBlock(buffer, encryptionKey);
 
-                ByteBuffer VoIPpacket = ByteBuffer.allocate(514);
+                //Calculate the checksum to send
+                int sum = 0;
+                for(byte b : encryptedBlock)
+                    sum += b;
+
+                // Add the Checksum, AuthKey and Encrypted Block to the packet respectively
+                ByteBuffer VoIPpacket = ByteBuffer.allocate(518);
+                VoIPpacket.putInt(sum);
                 VoIPpacket.putShort(authenticationKey);
                 VoIPpacket.put(encryptedBlock);
+
 
                 //Make a DatagramPacket from it, with client address and port number
                 DatagramPacket packet = new DatagramPacket(VoIPpacket.array(), VoIPpacket.array().length, clientIP, PORT);
