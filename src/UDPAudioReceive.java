@@ -5,15 +5,18 @@ import java.net.SocketException;
 import java.nio.ByteBuffer;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.HashMap;
 
 import CMPC3M06.AudioPlayer;
 import CMPC3M06.AudioRecorder;
+
+import uk.ac.uea.cmp.voip.DatagramSocket2;
 
 import javax.sound.sampled.LineUnavailableException;
 
 
 public class UDPAudioReceive implements Runnable {
-    static DatagramSocket receiving_socket;
+    static DatagramSocket2 receiving_socket;
 
     public void start(){
         Thread thread = new Thread(this);
@@ -47,6 +50,10 @@ public class UDPAudioReceive implements Runnable {
         short authenticationKey = 10;
         int decryptionKey = 255;
         int shiftKey = 10;
+        //reordering
+        short order = 0;
+        HashMap<Short, byte[]> saved = new HashMap<Short, byte[]>();
+        byte[] previousPacket = new byte[512];
         //***************************************************
 
         //***************************************************
@@ -54,7 +61,7 @@ public class UDPAudioReceive implements Runnable {
 
         //DatagramSocket receiving_socket;
         try{
-            receiving_socket = new DatagramSocket(PORT);
+            receiving_socket = new DatagramSocket2(PORT);
         } catch (SocketException e){
             System.out.println("ERROR: TextReceiver: Could not open UDP socket to receive from.");
             e.printStackTrace();
@@ -76,15 +83,21 @@ public class UDPAudioReceive implements Runnable {
         while (running){
 
             try{
-                byte[] buffer = new byte[514];
-                DatagramPacket packet = new DatagramPacket(buffer, 0, 514);
+                byte[] buffer = new byte[516];
+                DatagramPacket packet = new DatagramPacket(buffer, 0, 516);
 
                 receiving_socket.receive(packet);
                 int i;
+                //extract the packet number
+                byte[] packNumArry = new byte[2];
+                System.arraycopy(buffer, 0, packNumArry, 0, 2);
+                ByteBuffer packNumByteBuffer = ByteBuffer.wrap(packNumArry);
+                short packetNum = packNumByteBuffer.getShort();
+                //System.out.println(packetNum);
 
                 //extract authentication key from the packet
                 byte[] authKeyArr = new byte[2];
-                System.arraycopy(buffer, 0, authKeyArr, 0, 2);
+                System.arraycopy(buffer, 2, authKeyArr, 0, 2);
                 ByteBuffer authKeyByteBuffer = ByteBuffer.wrap(authKeyArr);
                 short authKey = authKeyByteBuffer.getShort();
 
@@ -95,11 +108,34 @@ public class UDPAudioReceive implements Runnable {
 
                     //extract the audio from the packet
                     byte[] playBuffer = new byte[512];
-                    System.arraycopy(buffer, 2, playBuffer, 0, 512);
+                    System.arraycopy(buffer, 4, playBuffer, 0, 512);
 
                     //Decrypt the audio and play it
                     playBuffer = decryptBlock(playBuffer, decryptionKey, shiftKey);
-                    player.playBlock(playBuffer);
+                    //player.playBlock(playBuffer);
+                    saved.put(packetNum, playBuffer);
+                    if(saved.size() >= 16){
+                        //get correct packet
+                        byte [] nextPacket = saved.get(order);
+                        if(nextPacket != null){
+                            player.playBlock(nextPacket);
+                            saved.remove(order);
+                            previousPacket = nextPacket;
+                            System.out.println(order);
+                        }
+                        else{
+                            // play the previous packet if correct packet not available
+                            if(previousPacket != null){
+                                player.playBlock(previousPacket);
+                                System.out.println(order-1);
+                            }
+                        }
+                        if(order == 31){
+                            order = 0;
+                        }else {
+                            order = (short) (order + 1);
+                        }
+                    }
                 }
 
             } catch (IOException e){

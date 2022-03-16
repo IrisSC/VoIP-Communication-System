@@ -8,11 +8,13 @@ import java.util.Arrays;
 import CMPC3M06.AudioPlayer;
 import CMPC3M06.AudioRecorder;
 
+import uk.ac.uea.cmp.voip.DatagramSocket2;
+
 import javax.sound.sampled.LineUnavailableException;
 
 public class UDPAudio implements Runnable {
 
-    static DatagramSocket sending_socket;
+    static DatagramSocket2 sending_socket;
 
     public void start(){
         Thread thread = new Thread(this);
@@ -46,6 +48,11 @@ public class UDPAudio implements Runnable {
         short authenticationKey = 10;
         int encryptionKey = 255;
         int shiftKey = 10;
+        //Packet number tracking
+        short packetNum = 0;
+        ByteBuffer [][] interleave = new ByteBuffer[4][4];
+        int rows = 0;
+        int columns = 0;
         //IP ADDRESS to send to
         InetAddress clientIP = null;
         try {
@@ -64,7 +71,7 @@ public class UDPAudio implements Runnable {
 
         //DatagramSocket sending_socket;
         try{
-            sending_socket = new DatagramSocket();
+            sending_socket = new DatagramSocket2();
         } catch (SocketException e){
             System.out.println("ERROR: TextSender: Could not open UDP socket to send from.");
             e.printStackTrace();
@@ -96,15 +103,37 @@ public class UDPAudio implements Runnable {
                 //Set encryption key
                 byte[] encryptedBlock = encryptBlock(buffer, encryptionKey, shiftKey);
 
-                ByteBuffer VoIPpacket = ByteBuffer.allocate(514);
+                ByteBuffer VoIPpacket = ByteBuffer.allocate(516);
+                VoIPpacket.putShort(packetNum);
                 VoIPpacket.putShort(authenticationKey);
                 VoIPpacket.put(encryptedBlock);
+                packetNum = (short) (packetNum + 1);
+                if(packetNum == 32){
+                    packetNum = 0;
+                }
 
-                //Make a DatagramPacket from it, with client address and port number
-                DatagramPacket packet = new DatagramPacket(VoIPpacket.array(), VoIPpacket.array().length, clientIP, PORT);
+                interleave[rows][columns] = VoIPpacket;
+                if(columns == 3 && rows == 3){
+                    for(int i=0; i<4; i++){
+                        for(int j=0; j<4; j++){
+                            ByteBuffer sendPacket = interleave[i][j];
+                            //Make a DatagramPacket from it, with client address and port number
+                            DatagramPacket packet = new DatagramPacket(sendPacket.array(), sendPacket.array().length, clientIP, PORT);
+                            //Send it
+                            sending_socket.send(packet);
+                        }
+                    }
+                }
+                 rows = rows + 1;
+                 if(rows == 4){
+                     rows = 0;
+                     columns = columns + 1;
+                 }
+                 if (columns ==4){
+                     columns = 0;
+                 }
 
-                //Send it
-                sending_socket.send(packet);
+
 
             } catch (IOException e){
                 System.out.println("ERROR: TextSender: Some random IO error occured!");
